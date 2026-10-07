@@ -28,8 +28,3 @@ vim.api.nvim_create_user_command('Ev', function()
  require('nvim-tree.api').tree.open()
 end, {})
 
-return {
-  "github/copilot.vim",
-  lazy=false,
-}
-
