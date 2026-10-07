@@ -1,0 +1,4 @@
+pack/
+*.backup
+*.backup[0-9]*
+*.bkp
