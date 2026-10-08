@@ -6,6 +6,15 @@ local keymap = vim.keymap
 -- デイリーノートの2行目に入れる，前後のノートへの移動リンク
 local daily_nav = "[[prev|← 前のノート]] | [[next|次のノート →]]"
 
+-- ファイルを開く．VS Code（VSCode Neovim）の中では，VS Codeのエディタで開く
+local function open_file(path)
+  if vim.g.vscode then
+    vim.fn.VSCodeExtensionNotify("open-file", path, 0)
+  else
+    vim.cmd.edit(vim.fn.fnameescape(path))
+  end
+end
+
 -- "YYYY-MM-DD" を days 日ずらした日付を返す
 local function shift_date(date, days)
   local y, m, d = date:match("^(%d+)-(%d+)-(%d+)$")
@@ -21,7 +30,7 @@ local function open_daily(date)
   if vim.fn.filereadable(path) == 0 then
     vim.fn.writefile({ "# " .. date, daily_nav, "" }, path)
   end
-  vim.cmd.edit(vim.fn.fnameescape(path))
+  open_file(path)
 end
 
 -- 今開いているバッファがデイリーノートなら，その日付を返す
@@ -102,7 +111,7 @@ local function follow_daily_nav(target)
   local step = target == "prev" and -1 or 1
   local date = neighbor_daily(current, step)
   if date then
-    vim.cmd.edit(vim.fn.fnameescape(daily_dir .. "/" .. date .. ".md"))
+    open_file(daily_dir .. "/" .. date .. ".md")
     return
   end
   local adjacent = shift_date(current, step)
@@ -157,7 +166,7 @@ local function follow_link()
     return
   end
   vim.fn.mkdir(vim.fn.fnamemodify(path, ":h"), "p")
-  vim.cmd.edit(vim.fn.fnameescape(path))
+  open_file(path)
 end
 
 keymap.set("n", "<leader>nd", function()
