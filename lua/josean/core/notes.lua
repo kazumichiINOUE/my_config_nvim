@@ -96,7 +96,7 @@ end
 local function follow_daily_nav(target)
   local current = current_daily_date()
   if not current then
-    vim.notify("[[prev]] と [[next]] はデイリーノートの中でだけ使える", vim.log.levels.WARN)
+    vim.notify("前後移動はデイリーノートの中でだけ使える", vim.log.levels.WARN)
     return
   end
   local step = target == "prev" and -1 or 1
@@ -164,6 +164,12 @@ keymap.set("n", "<leader>nd", function()
   open_daily()
 end, { desc = "Open today's daily note" })
 keymap.set("n", "<leader>nD", prompt_daily, { desc = "Open daily note for a date" })
+keymap.set("n", "<leader>np", function()
+  follow_daily_nav("prev")
+end, { desc = "Previous daily note" })
+keymap.set("n", "<leader>nn", function()
+  follow_daily_nav("next")
+end, { desc = "Next daily note" })
 keymap.set("n", "<leader>nf", function()
   require("telescope.builtin").find_files({ cwd = notes_dir })
 end, { desc = "Find files in notes" })
