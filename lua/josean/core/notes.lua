@@ -186,6 +186,60 @@ keymap.set("n", "<leader>ns", function()
   require("telescope.builtin").live_grep({ cwd = notes_dir })
 end, { desc = "Find string in notes" })
 
+-- デイリーの ## Log で insert mode を抜けたら，その行の頭に時刻を付ける（インタースティシャル・ジャーナリングの形）
+-- Log は "## Log" の直後から空行までの範囲．付けるのは，insert mode で書き換えた1行だけ
+local function in_daily_log(lnum)
+  local lines = vim.api.nvim_buf_get_lines(0, 0, lnum, false)
+  if vim.trim(lines[lnum]) == "" then
+    return false
+  end
+  for i = lnum - 1, 1, -1 do
+    if lines[i]:match("^##%s+Log%s*$") then
+      return true
+    end
+    if vim.trim(lines[i]) == "" or lines[i]:match("^#") then
+      return false
+    end
+  end
+  return false
+end
+
+local insert_start -- insert mode に入ったときの行番号と中身
+
+local function stamp_log_line()
+  local start = insert_start
+  insert_start = nil
+  local lnum = vim.api.nvim_win_get_cursor(0)[1]
+  local line = vim.api.nvim_get_current_line()
+  if not current_daily_date() or not in_daily_log(lnum) then
+    return
+  end
+  if start and start.lnum == lnum and start.text == line then
+    return -- 何も書き換えていない
+  end
+  if line:match("^%s") or line:match("^%- %d%d?:%d%d%s") then
+    return -- 字下げした行（子の箇条書き）と，もう時刻が付いた行には付けない
+  end
+  -- 行全体は書き換えず，頭に差し込むだけにする（VS Code との同期で書きかけを消さないため）
+  local bullet = line:match("^%- ") and 2 or 0
+  local text = (bullet == 0 and "- " or "") .. os.date("%H:%M") .. " "
+  vim.api.nvim_buf_set_text(0, lnum - 1, bullet, lnum - 1, bullet, { text })
+end
+
+local log_group = vim.api.nvim_create_augroup("notes_daily_log", { clear = true })
+vim.api.nvim_create_autocmd("InsertEnter", {
+  group = log_group,
+  pattern = "*.md",
+  callback = function()
+    insert_start = { lnum = vim.api.nvim_win_get_cursor(0)[1], text = vim.api.nvim_get_current_line() }
+  end,
+})
+vim.api.nvim_create_autocmd("InsertLeave", {
+  group = log_group,
+  pattern = "*.md",
+  callback = stamp_log_line,
+})
+
 -- ~/notes 内の Markdown でだけ <CR> をリンクジャンプにする
 vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
   pattern = notes_dir .. "/*.md",
