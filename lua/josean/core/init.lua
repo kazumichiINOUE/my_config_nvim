@@ -15,6 +15,23 @@ vim.api.nvim_create_autocmd("BufReadPost", {
     end,
 })
 
+-- insert mode を抜けたら（Esc，Ctrl+[，jk），入力を ABC（半角英数）に戻す．
+-- TIS を直接呼ぶ JXA なので，アクセシビリティの許可は要らない（WezTerm のペイン移動と同じ方法）
+if vim.fn.has("mac") == 1 then
+  local ime_off = [[
+ObjC.import("Carbon");
+const filter = $.NSDictionary.dictionaryWithObjectForKey(
+  "com.apple.keylayout.ABC", ObjC.castRefToObject($.kTISPropertyInputSourceID));
+const list = ObjC.castRefToObject($.TISCreateInputSourceList(filter, false));
+if (list.count > 0) $.TISSelectInputSource(list.objectAtIndex(0));
+]]
+  vim.api.nvim_create_autocmd("InsertLeave", {
+    callback = function()
+      vim.system({ "/usr/bin/osascript", "-l", "JavaScript", "-e", ime_off })
+    end,
+  })
+end
+
 vim.opt.rtp:append("/opt/homebrew/opt/fzf")
 
 vim.keymap.set('n', 'gx', function()
