@@ -4,6 +4,11 @@ local keymap = vim.keymap
 
 keymap.set("i", "jk", "<ESC>", { desc = "Exit insert mode with jk" })
 
+-- Emacs 風の行頭・行末．<C-o> だと InsertLeave が起き，Log の行に時刻が付いてしまうので <Home>/<End> で動く
+-- <C-e> は補完の窓が開いていれば nvim-cmp が閉じる方に使い，閉じていればここに来る
+keymap.set("i", "<C-a>", "<Home>", { desc = "Move to beginning of line" })
+keymap.set("i", "<C-e>", "<End>", { desc = "Move to end of line" })
+
 keymap.set("n", "<leader>nh", ":nohl<CR>", { desc = "Clear search highlights" })
 
 keymap.set("n", "<leader>+", "<C-a>", { desc = "Increment number" })
