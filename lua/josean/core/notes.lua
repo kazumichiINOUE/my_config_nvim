@@ -240,6 +240,84 @@ vim.api.nvim_create_autocmd("InsertLeave", {
   callback = stamp_log_line,
 })
 
+-- 画像をドロップしたら，daily/assets/ にコピーしてリンクに置き換える
+-- WezTerm はドロップしたファイルのパスを，空白だけ "\ " にして貼る（quote_dropped_files の既定）．
+-- nvim には貼り付けとして届くので，vim.paste を包んで受ける
+local image_exts = { png = true, jpg = true, jpeg = true, gif = true, webp = true }
+
+-- 貼られた文字が，実在する画像1つのパスならそのパスを返す
+local function dropped_image(lines)
+  if #lines == 2 and lines[2] == "" then
+    lines = { lines[1] }
+  end
+  if #lines ~= 1 then
+    return nil
+  end
+  local path = vim.trim(lines[1]):gsub("^'(.*)'$", "%1"):gsub('^"(.*)"$', "%1"):gsub("\\(.)", "%1")
+  local ext = (path:match("%.(%w+)$") or ""):lower()
+  if path:sub(1, 1) ~= "/" or not image_exts[ext] or vim.fn.filereadable(path) ~= 1 then
+    return nil
+  end
+  return path
+end
+
+local function read_all(path)
+  local f = io.open(path, "rb")
+  if not f then
+    return nil
+  end
+  local data = f:read("*a")
+  f:close()
+  return data
+end
+
+-- src を daily/assets/<日付>-<元の名前> にコピーし，コピー先を返す．日付は，デイリーならその日，ほかは今日．
+-- 同じ名前で中身の違うファイルがあれば番号を足す．同じ中身ならコピーせずにそれを使う
+local function copy_to_assets(src)
+  local dir = daily_dir .. "/assets"
+  vim.fn.mkdir(dir, "p")
+  local name = (current_daily_date() or os.date("%Y-%m-%d")) .. "-" .. vim.fn.fnamemodify(src, ":t")
+  local stem, ext = name:match("^(.*)(%.[^.]+)$")
+  local dest, n = dir .. "/" .. name, 2
+  while vim.fn.filereadable(dest) == 1 do
+    if read_all(dest) == read_all(src) then
+      return dest
+    end
+    dest, n = dir .. "/" .. stem .. "-" .. n .. ext, n + 1
+  end
+  local ok, err = vim.uv.fs_copyfile(src, dest)
+  if not ok then
+    vim.notify("画像をコピーできなかった: " .. tostring(err), vim.log.levels.WARN)
+    return nil
+  end
+  return dest
+end
+
+-- 開いているノートのフォルダから見た，target への相対パス
+local function path_from_note(target)
+  local dir = vim.fn.expand("%:p:h")
+  local rel = target:sub(#notes_dir + 2)
+  local depth = select(2, dir:sub(#notes_dir + 1):gsub("/", ""))
+  if dir == daily_dir then
+    return target:sub(#daily_dir + 2)
+  end
+  return string.rep("../", depth) .. rel
+end
+
+local paste = vim.paste
+vim.paste = function(lines, phase)
+  local buf = vim.api.nvim_buf_get_name(0)
+  if phase == -1 and buf:sub(1, #notes_dir + 1) == notes_dir .. "/" and buf:match("%.md$") then
+    local src = dropped_image(lines)
+    local dest = src and copy_to_assets(src)
+    if dest then
+      -- 空白を含む名前でも読めるよう，リンク先は <> で囲む（VS Code のころのリンクと同じ形）
+      return paste({ "![](<" .. path_from_note(dest) .. ">)" }, phase)
+    end
+  end
+  return paste(lines, phase)
+end
+
 -- ~/notes 内の Markdown でだけ <CR> をリンクジャンプにする
 vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
   pattern = notes_dir .. "/*.md",
