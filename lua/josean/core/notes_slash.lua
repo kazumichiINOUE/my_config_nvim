@@ -8,19 +8,29 @@ local commands = {
   { label = "/H1", desc = "見出し1にする", cmd = "heading", level = 1 },
   { label = "/H2", desc = "見出し2にする", cmd = "heading", level = 2 },
   { label = "/H3", desc = "見出し3にする", cmd = "heading", level = 3 },
+  { label = "/item", desc = "箇条書きにする（- ）", cmd = "item" },
 }
 
--- 行の見出しの印（# の並び）を level にそろえる．cursor は / コマンドを消したあとの位置（0始まりのバイト）．
--- 新しい行と，そこでのカーソルの位置を返す
-local function to_heading(line, cursor, level, at_end)
-  local old = line:match("^#*%s*")
-  local body = line:sub(#old + 1)
+-- 行の頭を，字下げ，印（見出しの #，箇条書きの - * +，番号つきの 1.），残りに分ける．
+-- # は，あとに空白が続くか # だけのときだけ見出しの印とみなす（行頭の #タグ を取り違えない）
+local function split_mark(line)
+  local indent = line:match("^%s*")
+  local rest = line:sub(#indent + 1)
+  local mark = rest:match("^#+%s+") or rest:match("^#+$") or rest:match("^[-*+]%s+") or rest:match("^[-*+]$")
+    or rest:match("^%d+[.)]%s+") or ""
+  return indent, mark, rest:sub(#mark + 1)
+end
+
+-- 行の頭の印を mark に付け替える．箇条書きは字下げを残し（入れ子のため），見出しは字下げを外す．
+-- cursor は / コマンドを消したあとの位置（0始まりのバイト）．新しい行と，そこでのカーソルの位置を返す
+local function set_mark(line, cursor, mark, keep_indent, at_end)
+  local indent, old, body = split_mark(line)
   if at_end then
     body = body:gsub("%s+$", "") -- 行末で打ったなら，コマンドの前の空白は残さない
   end
-  local mark = string.rep("#", level) .. " "
-  local new = mark .. body
-  local col = at_end and #new or #mark + math.max(cursor - #old, 0)
+  local head = (keep_indent and indent or "") .. mark
+  local new = head .. body
+  local col = at_end and #new or #head + math.max(cursor - #indent - #old, 0)
   return new, col
 end
 
@@ -85,12 +95,15 @@ function source:execute(item, callback)
     return
   end
   local rest = line:sub(1, s) .. line:sub(col + 1)
-  local new, newcol = to_heading(rest, s, item.data.level, col == #line)
+  local new, newcol
+  if item.data.cmd == "item" then
+    new, newcol = set_mark(rest, s, "- ", true, col == #line)
+  else
+    new, newcol = set_mark(rest, s, string.rep("#", item.data.level) .. " ", false, col == #line)
+  end
   vim.api.nvim_buf_set_lines(0, row - 1, row, false, { new })
   vim.api.nvim_win_set_cursor(0, { row, newcol })
   callback()
 end
-
-source._to_heading = to_heading -- 試験のため
 
 return source
