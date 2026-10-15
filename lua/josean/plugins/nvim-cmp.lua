@@ -22,6 +22,10 @@ return {
 
     local lspkind = require("lspkind")
 
+    -- ~/notes の #タグ と / コマンドを候補に出す（josean/core/notes_tags.lua，notes_slash.lua）
+    cmp.register_source("notes_tags", require("josean.core.notes_tags").new())
+    cmp.register_source("notes_slash", require("josean.core.notes_slash").new())
+
     -- loads vscode style snippets from installed plugins (e.g. friendly-snippets)
     require("luasnip.loaders.from_vscode").lazy_load()
 
@@ -44,7 +48,11 @@ return {
         ["<CR>"] = cmp.mapping.confirm({ select = false }),
       }),
       -- sources for autocompletion
+      -- 1つ目の組は ~/notes の Markdown でだけ効く．候補があるときは2つ目の組（/ で出るパスなど）を出さない
       sources = cmp.config.sources({
+        { name = "notes_slash" },
+        { name = "notes_tags", keyword_length = 2 }, -- # のあとに1文字打つと出す
+      }, {
         { name = "nvim_lsp"},
         { name = "luasnip" }, -- snippets
         { name = "buffer" }, -- text within current buffer
