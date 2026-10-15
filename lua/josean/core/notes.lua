@@ -272,11 +272,15 @@ local function read_all(path)
 end
 
 -- src を daily/assets/<日付>-<元の名前> にコピーし，コピー先を返す．日付は，デイリーならその日，ほかは今日．
+-- 元の名前がすでに日付で始まっていれば足さない（assets の画像を手元に写して加工し，貼り直したときなど）．
 -- 同じ名前で中身の違うファイルがあれば番号を足す．同じ中身ならコピーせずにそれを使う
 local function copy_to_assets(src)
   local dir = daily_dir .. "/assets"
   vim.fn.mkdir(dir, "p")
-  local name = (current_daily_date() or os.date("%Y-%m-%d")) .. "-" .. vim.fn.fnamemodify(src, ":t")
+  local name = vim.fn.fnamemodify(src, ":t")
+  if not name:match("^%d%d%d%d%-%d%d%-%d%d%-") then
+    name = (current_daily_date() or os.date("%Y-%m-%d")) .. "-" .. name
+  end
   local stem, ext = name:match("^(.*)(%.[^.]+)$")
   local dest, n = dir .. "/" .. name, 2
   while vim.fn.filereadable(dest) == 1 do
