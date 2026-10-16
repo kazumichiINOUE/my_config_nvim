@@ -9,14 +9,16 @@ local commands = {
   { label = "/H2", desc = "見出し2にする", cmd = "heading", level = 2 },
   { label = "/H3", desc = "見出し3にする", cmd = "heading", level = 3 },
   { label = "/item", desc = "箇条書きにする（- ）", cmd = "item" },
+  { label = "/todo", desc = "- [ ] → - [x] → なし の順に回す", cmd = "todo" },
 }
 
--- 行の頭を，字下げ，印（見出しの #，箇条書きの - * +，番号つきの 1.），残りに分ける．
+-- 行の頭を，字下げ，印（見出しの #，箇条書きの - * +，チェックボックスの - [ ]，番号つきの 1.），残りに分ける．
 -- # は，あとに空白が続くか # だけのときだけ見出しの印とみなす（行頭の #タグ を取り違えない）
 local function split_mark(line)
   local indent = line:match("^%s*")
   local rest = line:sub(#indent + 1)
-  local mark = rest:match("^#+%s+") or rest:match("^#+$") or rest:match("^[-*+]%s+") or rest:match("^[-*+]$")
+  local mark = rest:match("^[-*+]%s+%[[ xX]%]%s+") or rest:match("^[-*+]%s+%[[ xX]%]$")
+    or rest:match("^#+%s+") or rest:match("^#+$") or rest:match("^[-*+]%s+") or rest:match("^[-*+]$")
     or rest:match("^%d+[.)]%s+") or ""
   return indent, mark, rest:sub(#mark + 1)
 end
@@ -98,6 +100,11 @@ function source:execute(item, callback)
   local new, newcol
   if item.data.cmd == "item" then
     new, newcol = set_mark(rest, s, "- ", true, col == #line)
+  elseif item.data.cmd == "todo" then
+    -- - [ ] → - [x] → なし（字下げは残す）の順に回す．ほかの印の行はチェックボックスにする
+    local _, old = split_mark(rest)
+    local mark = old:match("%[ %]") and "- [x] " or old:match("%[[xX]%]") and "" or "- [ ] "
+    new, newcol = set_mark(rest, s, mark, true, col == #line)
   else
     new, newcol = set_mark(rest, s, string.rep("#", item.data.level) .. " ", false, col == #line)
   end
