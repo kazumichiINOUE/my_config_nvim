@@ -2,6 +2,7 @@ require("josean.core.options")
 require("josean.core.keymaps")
 require("josean.core.notes")
 require("josean.core.notes_done")
+require("josean.core.markdown_list")
 
 -- ファイルを開いたときに前回の編集位置に移動する
 vim.api.nvim_create_autocmd("BufReadPost", {
