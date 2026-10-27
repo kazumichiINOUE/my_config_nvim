@@ -1,4 +1,5 @@
--- 研究ノート（~/notes）の Markdown で，チェック済み（- [x]）の行を薄く表示する．
+-- 研究ノート（~/notes）の Markdown で，チェック済み（- [x]）の行と，タスクの行末の ID（「 ^a3f9」）を薄く表示する．
+-- ID は同じタスクをほかのノートの行と結ぶ印で，済み／未了は tutti の中継が揃える（tutti の docs/twins.md）．
 -- 描画のたびにその場で色を当てる（extmark を残さない）ので，/todo や tutti で届いた変更にもそのまま効く
 local notes_dir = vim.fn.expand("~/notes")
 local ns = vim.api.nvim_create_namespace("notes_done")
@@ -25,7 +26,10 @@ vim.api.nvim_set_decoration_provider(ns, {
   end,
   on_line = function(_, _, buf, row)
     local line = vim.api.nvim_buf_get_lines(buf, row, row + 1, false)[1]
-    local s = line and line:match("^%s*()[-*+]%s+%[[xX]%]")
+    if not line then
+      return
+    end
+    local s = line:match("^%s*()[-*+]%s+%[[xX]%]") or line:match("^%s*[-*+]%s+%[ %].-()%s%^[%w%-]+%s*$")
     if s then
       vim.api.nvim_buf_set_extmark(buf, ns, row, s - 1, {
         end_col = #line,
