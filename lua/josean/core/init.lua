@@ -2,6 +2,7 @@ require("josean.core.options")
 require("josean.core.keymaps")
 require("josean.core.notes")
 require("josean.core.notes_done")
+require("josean.core.notes_taskid")
 require("josean.core.markdown_list")
 require("josean.core.karabiner_mode")
 
