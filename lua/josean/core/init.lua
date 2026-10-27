@@ -27,9 +27,17 @@ const filter = $.NSDictionary.dictionaryWithObjectForKey(
 const list = ObjC.castRefToObject($.TISCreateInputSourceList(filter, false));
 if (list.count > 0) $.TISSelectInputSource(list.objectAtIndex(0));
 ]]
-  vim.api.nvim_create_autocmd("InsertLeave", {
+  local function select_abc()
+    vim.system({ "/usr/bin/osascript", "-l", "JavaScript", "-e", ime_off })
+  end
+  vim.api.nvim_create_autocmd("InsertLeave", { callback = select_abc })
+  -- ほかのアプリやペインから戻ったときも ABC に戻す．入力ソースは Mac 全体で1つなので，よそで日本語にしたまま戻りうる．
+  -- 日本語を打つモード（insert，replace，コマンドライン，ターミナル）のときは触らない
+  vim.api.nvim_create_autocmd("FocusGained", {
     callback = function()
-      vim.system({ "/usr/bin/osascript", "-l", "JavaScript", "-e", ime_off })
+      if not vim.fn.mode():find("^[iRct]") then
+        select_abc()
+      end
     end,
   })
 end
