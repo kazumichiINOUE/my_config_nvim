@@ -9,7 +9,7 @@ local commands = {
   { label = "/H2", desc = "見出し2にする", cmd = "heading", level = 2 },
   { label = "/H3", desc = "見出し3にする", cmd = "heading", level = 3 },
   { label = "/item", desc = "箇条書きにする（- ）", cmd = "item" },
-  { label = "/todo", desc = "- [ ] → - [x] → なし の順に回す", cmd = "todo" },
+  { label = "/todo", desc = "- [ ] → - [x] 時刻 → なし の順に回す", cmd = "todo" },
 }
 
 -- 行の頭を，字下げ，印（見出しの #，箇条書きの - * +，チェックボックスの - [ ]，番号つきの 1.），残りに分ける．
@@ -21,6 +21,23 @@ local function split_mark(line)
     or rest:match("^#+%s+") or rest:match("^#+$") or rest:match("^[-*+]%s+") or rest:match("^[-*+]$")
     or rest:match("^%d+[.)]%s+") or ""
   return indent, mark, rest:sub(#mark + 1)
+end
+
+-- 済みにした時刻（kaz の決め，2026-10-27）．「- [x] 15:37 〜」．
+-- 開いているのがその日の daily でなければ（前の日の daily，トピックのノート），日付も添える（10/28 09:12）．
+-- iPhone の Todo のページ（tutti の relay/todo.js）と同じ形
+local function done_stamp()
+  local name = vim.fn.expand("%:t:r")
+  local day = ""
+  if name ~= os.date("%Y-%m-%d") then
+    day = string.format("%d/%d ", tonumber(os.date("%m")), tonumber(os.date("%d")))
+  end
+  return day .. os.date("%H:%M") .. " "
+end
+
+-- 済みの行の頭にある時刻（10/28 09:12 か 15:37）
+local function stamp_of(body)
+  return body:match("^%d%d?/%d%d? %d%d?:%d%d ") or body:match("^%d%d?:%d%d ")
 end
 
 -- 行の頭の印を mark に付け替える．箇条書きは字下げを残し（入れ子のため），見出しは字下げを外す．
@@ -101,9 +118,20 @@ function source:execute(item, callback)
   if item.data.cmd == "item" then
     new, newcol = set_mark(rest, s, "- ", true, col == #line)
   elseif item.data.cmd == "todo" then
-    -- - [ ] → - [x] → なし（字下げは残す）の順に回す．ほかの印の行はチェックボックスにする
-    local _, old = split_mark(rest)
-    local mark = old:match("%[ %]") and "- [x] " or old:match("%[[xX]%]") and "" or "- [ ] "
+    -- - [ ] → - [x] 時刻 → なし（字下げは残す）の順に回す．ほかの印の行はチェックボックスにする
+    local indent, old, body = split_mark(rest)
+    local mark = "- [ ] "
+    if old:match("%[ %]") then
+      mark = "- [x] " .. done_stamp()
+    elseif old:match("%[[xX]%]") then
+      mark = ""
+      -- 済みの時刻も外す．カーソルは時刻のぶん前へ
+      local stamp = stamp_of(body)
+      if stamp then
+        rest = indent .. old .. body:sub(#stamp + 1)
+        s = math.max(s - #stamp, #indent + #old)
+      end
+    end
     new, newcol = set_mark(rest, s, mark, true, col == #line)
   else
     new, newcol = set_mark(rest, s, string.rep("#", item.data.level) .. " ", false, col == #line)
