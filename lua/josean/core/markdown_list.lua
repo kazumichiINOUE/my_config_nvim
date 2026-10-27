@@ -48,11 +48,27 @@ local function open_below()
   return indent and "o" .. next_mark or "o"
 end
 
+-- Tab と Shift+Tab は，印のある行なら行ごと1段下げる／上げる（幅は shiftwidth）．印のない行では今までどおり．
+-- insert mode は <C-t>，<C-d>（カーソルは中身に対して同じ位置に残る），normal mode は >>，<<（. で繰り返せる）．
+-- normal mode の Tab は Ctrl+i（ジャンプの前へ）と同じキーになりうるが，WezTerm は kitty keyboard で見分けて送る
+local function indent_key(key, list_key)
+  return function()
+    return parse(vim.api.nvim_get_current_line()) and list_key or key
+  end
+end
+
 vim.api.nvim_create_autocmd("FileType", {
   group = vim.api.nvim_create_augroup("markdown_list", { clear = true }),
   pattern = "markdown",
   callback = function(args)
     vim.keymap.set("i", "<CR>", enter, { buffer = args.buf, desc = "Continue Markdown list" })
     vim.keymap.set("n", "o", open_below, { buffer = args.buf, expr = true, desc = "Open Markdown list item below" })
+    vim.keymap.set("i", "<Tab>", indent_key("<Tab>", "<C-t>"), { buffer = args.buf, expr = true, desc = "Indent Markdown list item" })
+    vim.keymap.set("i", "<S-Tab>", indent_key("<S-Tab>", "<C-d>"), { buffer = args.buf, expr = true, desc = "Outdent Markdown list item" })
+    vim.keymap.set("n", "<Tab>", indent_key("<Tab>", ">>"), { buffer = args.buf, expr = true, desc = "Indent Markdown list item" })
+    vim.keymap.set("n", "<S-Tab>", indent_key("<S-Tab>", "<<"), { buffer = args.buf, expr = true, desc = "Outdent Markdown list item" })
+    -- visual mode では，選んだ行をまとめて動かし，選んだままにする
+    vim.keymap.set("x", "<Tab>", ">gv", { buffer = args.buf, desc = "Indent selected lines" })
+    vim.keymap.set("x", "<S-Tab>", "<gv", { buffer = args.buf, desc = "Outdent selected lines" })
   end,
 })
