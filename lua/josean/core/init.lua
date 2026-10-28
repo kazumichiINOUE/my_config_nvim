@@ -1,3 +1,5 @@
+-- クリップボードの橋渡しは，ほかより先に決める（g:clipboard は最初に使われるまでに置く）
+require("josean.core.notes_clipboard")
 require("josean.core.options")
 require("josean.core.keymaps")
 require("josean.core.notes")
